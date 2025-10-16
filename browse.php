@@ -240,6 +240,13 @@ $files = $stmt->fetchAll();
             border-radius: 6px;
             font-size: 0.75rem;
             font-weight: 500;
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+        
+        .user-badge:hover {
+            background: #0d966b;
+            color: white;
         }
         
         @media (max-width: 768px) {
@@ -411,9 +418,12 @@ $files = $stmt->fetchAll();
                                             <span><?php echo formatFileSize($file['file_size']); ?></span>
                                         </div>
                                         
+                                        <!-- Kullanıcı profil linki -->
                                         <div class="file-detail">
                                             <i class="bi bi-person"></i>
-                                            <span class="user-badge">@<?php echo htmlspecialchars($file['username']); ?></span>
+                                            <a href="profile.php?id=<?php echo $file['user_id']; ?>" class="user-badge" onclick="event.stopPropagation()">
+                                                @<?php echo htmlspecialchars($file['username']); ?>
+                                            </a>
                                         </div>
                                         
                                         <div class="file-detail">

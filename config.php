@@ -10,7 +10,7 @@ if (session_status() == PHP_SESSION_NONE) {
 $host = "localhost";
 $dbname = "onvibes_online_barisha_drive";
 $username = "onvib_barisha";
-$password = "9mgycTZQ0ne3&s?";
+$password = "9mgycTZQ0ne3&s?m";
 
 try {
     $db = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8", $username, $password);
@@ -150,6 +150,11 @@ function safe_html($data) {
 // Token oluşturma
 function generateToken($length = 32) {
     return bin2hex(random_bytes($length));
+}
+
+// Kullanıcı profil linki oluşturma fonksiyonu
+function getUserProfileLink($user_id, $username) {
+    return '<a href="profile.php?id=' . $user_id . '" style="color: #10B981; text-decoration: none; font-weight: 500;">@' . htmlspecialchars($username) . '</a>';
 }
 
 // Otomatik olarak gerekli klasörleri oluştur

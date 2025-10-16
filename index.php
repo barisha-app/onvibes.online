@@ -481,7 +481,7 @@ try {
                             </a>
                         <?php else: ?>
                             <a href="register.php" class="btn btn-primary">
-                                <i class="bi bi-person-plus me-2"></i>Kayıt Ol ve Hemen Başla
+                                <i class="bi bi-person-plus me-2"></i>Hemen Başla
                             </a>
                             <a href="login.php" class="btn btn-outline-light">
                                 <i class="bi bi-box-arrow-in-right me-2"></i>Giriş Yap
@@ -544,7 +544,9 @@ try {
                                 <div class="file-info">
                                     <div class="file-name"><?php echo htmlspecialchars($file['filename']); ?></div>
                                     <div class="file-meta">
-                                        <span class="file-uploader">@<?php echo htmlspecialchars($file['username']); ?></span>
+                                        <span class="file-uploader">
+                                            <?php echo getUserProfileLink($file['user_id'], $file['username']); ?>
+                                        </span>
                                         <span><?php echo formatFileSize($file['file_size']); ?></span>
                                     </div>
                                     <div class="file-actions">

@@ -148,6 +148,16 @@ $stmt->execute([$file_id]);
             cursor: pointer;
         }
         
+        .user-link {
+            color: var(--success);
+            text-decoration: none;
+            font-weight: 500;
+        }
+        
+        .user-link:hover {
+            color: #0d966b;
+        }
+        
         @media (max-width: 768px) {
             body {
                 padding-top: 70px;
@@ -189,7 +199,9 @@ $stmt->execute([$file_id]);
                 <div class="file-viewer">
                     <div class="text-center mb-4">
                         <h2><?php echo htmlspecialchars($file['filename']); ?></h2>
-                        <p class="text-muted">@<?php echo htmlspecialchars($file['username']); ?> tarafından yüklendi</p>
+                        <p class="text-muted">
+                            <?php echo getUserProfileLink($file['user_id'], $file['username']); ?> tarafından yüklendi
+                        </p>
                     </div>
                     
                     <!-- Dosya İçeriği -->
@@ -238,7 +250,9 @@ $stmt->execute([$file_id]);
                             <div class="col-md-6">
                                 <p><strong>Dosya Adı:</strong> <?php echo htmlspecialchars($file['filename']); ?></p>
                                 <p><strong>Boyut:</strong> <?php echo formatFileSize($file['file_size']); ?></p>
-                                <p><strong>Yükleyen:</strong> @<?php echo htmlspecialchars($file['username']); ?></p>
+                                <p><strong>Yükleyen:</strong> 
+                                    <?php echo getUserProfileLink($file['user_id'], $file['username']); ?>
+                                </p>
                             </div>
                             <div class="col-md-6">
                                 <p><strong>Yüklenme Tarihi:</strong> <?php echo date('d.m.Y H:i', strtotime($file['created_at'])); ?></p>

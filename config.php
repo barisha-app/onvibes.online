@@ -45,7 +45,174 @@ define('SITE_URL', 'https://onvibes.online');
 // Maksimum dosya boyutu (100MB)
 define('MAX_FILE_SIZE', 100 * 1024 * 1024);
 
-// Dosya önizleme fonksiyonu - GÜNCELLENDİ
+// E-POSTA AYARLARI
+define('MAIL_FROM', 'admin@onvibes.online');
+define('MAIL_FROM_NAME', 'OnVibes');
+
+// BASİT E-POSTA GÖNDERME FONKSİYONU
+function sendVerificationEmail($userEmail, $userName, $verificationCode) {
+    $to = $userEmail;
+    $subject = 'OnVibes - E-posta Doğrulama';
+    
+    // HTML E-posta içeriği
+    $message = "
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <style>
+            body { font-family: Arial, sans-serif; background: #f4f4f4; padding: 20px; }
+            .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+            .header { text-align: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 10px 10px 0 0; margin: -30px -30px 20px -30px; }
+            .code { font-size: 32px; font-weight: bold; color: #667eea; text-align: center; margin: 20px 0; padding: 15px; background: #f8f9fa; border-radius: 5px; letter-spacing: 5px; }
+            .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; color: #666; font-size: 12px; text-align: center; }
+        </style>
+    </head>
+    <body>
+        <div class='container'>
+            <div class='header'>
+                <h1>🎵 OnVibes</h1>
+                <p>E-posta Doğrulama</p>
+            </div>
+            
+            <h2>Merhaba {$userName}!</h2>
+            <p>OnVibes hesabınızı aktif etmek için aşağıdaki doğrulama kodunu kullanın:</p>
+            
+            <div class='code'>{$verificationCode}</div>
+            
+            <p>Bu kodu <strong>5 dakika</strong> içinde kullanmanız gerekmektedir.</p>
+            <p>Eğer bu hesabı siz oluşturmadıysanız, bu e-postayı görmezden gelebilirsiniz.</p>
+            
+            <div class='footer'>
+                <p>© 2024 OnVibes. Tüm hakları saklıdır.</p>
+                <p>Bu e-posta otomatik olarak gönderilmiştir, lütfen yanıtlamayın.</p>
+            </div>
+        </div>
+    </body>
+    </html>
+    ";
+    
+    // E-posta başlıkları - ASCII karakter sorununu çözmek için
+    $headers = "MIME-Version: 1.0" . "\r\n";
+    $headers .= "Content-type:text/html;charset=UTF-8" . "\r\n";
+    $headers .= "From: OnVibes <admin@onvibes.online>" . "\r\n";
+    $headers .= "Reply-To: admin@onvibes.online" . "\r\n";
+    $headers .= "X-Mailer: PHP/" . phpversion();
+    
+    // E-postayı gönder
+    if (mail($to, $subject, $message, $headers)) {
+        error_log("E-posta gönderildi: {$userEmail} - Kod: {$verificationCode}");
+        return true;
+    } else {
+        error_log("E-posta gönderilemedi: {$userEmail}");
+        return false;
+    }
+}
+
+// DOĞRULAMA KODU OLUŞTURMA FONKSİYONU
+function generateVerificationCode($length = 6) {
+    return str_pad(mt_rand(0, pow(10, $length) - 1), $length, '0', STR_PAD_LEFT);
+}
+
+// KULLANICI DOĞRULAMA FONKSİYONU
+function verifyUserCode($db, $email, $code) {
+    try {
+        $stmt = $db->prepare("SELECT * FROM users WHERE email = ? AND verification_code = ? AND verification_expires > NOW()");
+        $stmt->execute([$email, $code]);
+        $user = $stmt->fetch();
+        
+        if ($user) {
+            // Doğrulama başarılı, kullanıcıyı aktif et
+            $stmt = $db->prepare("UPDATE users SET is_verified = 1, verification_code = NULL, verification_expires = NULL, status = 'active' WHERE email = ?");
+            $stmt->execute([$email]);
+            return true;
+        }
+        return false;
+    } catch(PDOException $e) {
+        error_log("Doğrulama hatası: " . $e->getMessage());
+        return false;
+    }
+}
+
+// OTOMATİK DOĞRULAMA KODU GÖNDERME
+function sendAutoVerification($db, $userEmail, $userName) {
+    try {
+        // Doğrulama kodu oluştur
+        $verificationCode = generateVerificationCode();
+        $expires = date('Y-m-d H:i:s', strtotime('+5 minutes'));
+        
+        // Veritabanına kaydet
+        $stmt = $db->prepare("UPDATE users SET verification_code = ?, verification_expires = ? WHERE email = ?");
+        $stmt->execute([$verificationCode, $expires, $userEmail]);
+        
+        // E-posta gönder
+        return sendVerificationEmail($userEmail, $userName, $verificationCode);
+        
+    } catch(PDOException $e) {
+        error_log("Doğrulama kodu gönderme hatası: " . $e->getMessage());
+        return false;
+    }
+}
+
+// Kullanıcı kayıt olduğunda otomatik olarak doğrulama maili gönder
+function handleUserRegistration($db, $userEmail, $userName) {
+    return sendAutoVerification($db, $userEmail, $userName);
+}
+
+// ADMIN ONAY SİSTEMİ
+function getPendingUsers($db) {
+    $stmt = $db->prepare("SELECT * FROM users WHERE (is_verified = 0 OR admin_approved = 0) AND status = 'pending' ORDER BY created_at DESC");
+    $stmt->execute();
+    return $stmt->fetchAll();
+}
+
+function approveUser($db, $user_id) {
+    $stmt = $db->prepare("UPDATE users SET admin_approved = 1, is_verified = 1, status = 'active' WHERE id = ?");
+    return $stmt->execute([$user_id]);
+}
+
+function rejectUser($db, $user_id) {
+    $stmt = $db->prepare("UPDATE users SET status = 'rejected' WHERE id = ?");
+    return $stmt->execute([$user_id]);
+}
+
+// MANUEL DOĞRULAMA KODU
+function generateManualVerificationCode() {
+    return "164913"; // Sabit kod - istediğin zaman değiştirebilirsin
+}
+
+function verifyManualCode($db, $email, $code) {
+    $manual_code = generateManualVerificationCode();
+    if ($code === $manual_code) {
+        $stmt = $db->prepare("UPDATE users SET is_verified = 1, admin_approved = 1, status = 'active' WHERE email = ?");
+        return $stmt->execute([$email]);
+    }
+    return false;
+}
+
+// REGISTER.PHP İÇİN GÜNCELLENMİŞ KAYIT FONKSİYONU
+function registerUser($db, $username, $email, $password) {
+    try {
+        // Klasör adı oluştur
+        $folder = strtolower($username) . '_files';
+        
+        // Şifreyi hashle
+        $hashed_password = password_hash($password, PASSWORD_DEFAULT);
+        
+        // Manuel doğrulama kodu
+        $manual_code = generateManualVerificationCode();
+        
+        // Kullanıcıyı kaydet (is_verified = 0, admin_approved = 0 olarak)
+        $stmt = $db->prepare("INSERT INTO users (username, email, password, folder, manual_verification_code, is_verified, admin_approved, status) VALUES (?, ?, ?, ?, ?, 0, 0, 'pending')");
+        $stmt->execute([$username, $email, $hashed_password, $folder, $manual_code]);
+        
+        return $db->lastInsertId();
+        
+    } catch(PDOException $e) {
+        throw new Exception("Kayıt hatası: " . $e->getMessage());
+    }
+}
+
+// Dosya önizleme fonksiyonu
 function getFilePreview($file_path, $file_type, $file_id = null, $auto_play = false) {
     if (!file_exists($file_path)) {
         return "<div style='text-align: center; padding: 30px; background: #1a1a1a; border-radius: 8px;'>
